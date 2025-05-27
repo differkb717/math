@@ -85,12 +85,12 @@
       operator = operators[Math.floor(Math.random() * operators.length)];
 
       if (operator === '+') {
-        num1 = getRandomInt(0, 100);
-        num2 = getRandomInt(0, 100 - num1);  // 確保不超過 100
+        num1 = getRandomInt(0, 300);
+        num2 = getRandomInt(0, 300 - num1); // 確保總和 ≤ 300
         correctAnswer = num1 + num2;
       } else if (operator === '-') {
-        num1 = getRandomInt(0, 100);
-        num2 = getRandomInt(0, num1);  // 確保不為負數
+        num1 = getRandomInt(0, 300);
+        num2 = getRandomInt(0, num1); // 確保不為負數
         correctAnswer = num1 - num2;
       } else if (operator === '*') {
         num1 = getRandomInt(1, 10);
