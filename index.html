@@ -10,7 +10,6 @@
       background-color: #f0f8ff;
       text-align: center;
       padding: 20px;
-      margin: 0;
     }
     .container {
       background-color: #fff;
@@ -21,105 +20,168 @@
       max-width: 90%;
       width: 360px;
     }
-    h1 {
-      font-size: 1.8em;
-      margin-bottom: 20px;
-    }
-    #question {
-      font-size: 1.5em;
-      margin: 20px 0;
-    }
-    input[type="number"] {
+    select, input[type="number"], button {
       font-size: 1.2em;
+      margin: 10px;
       padding: 10px;
-      width: 100%;
-      max-width: 200px;
-      margin-bottom: 15px;
+      width: 90%;
       box-sizing: border-box;
     }
-    button {
-      font-size: 1.1em;
-      padding: 12px 20px;
-      margin: 5px;
-      width: 45%;
-      max-width: 140px;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: background-color 0.2s;
-    }
-    button:hover {
-      background-color: #e0e0e0;
-    }
-    #result {
+    #question, #timer, #result, #summary {
+      margin: 10px 0;
       font-size: 1.2em;
-      margin-top: 20px;
     }
-    @media (max-width: 400px) {
-      h1 {
-        font-size: 1.5em;
-      }
-      button {
-        width: 100%;
-        margin-top: 10px;
-      }
+    #summary {
+      text-align: left;
+    }
+    .hidden {
+      display: none;
     }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>數學練習遊戲</h1>
-    <div id="question">請按「下一題」開始</div>
-    <input type="number" id="answer" placeholder="輸入答案">
+    
+    <label for="mode">選擇練習類型：</label>
+    <select id="mode">
+      <option value="">請選擇</option>
+      <option value="+">加法</option>
+      <option value="-">減法</option>
+      <option value="*">乘法</option>
+    </select>
     <br>
-    <button onclick="checkAnswer()">送出</button>
-    <button onclick="generateQuestion()">下一題</button>
-    <div id="result"></div>
+    <button onclick="startGame()">開始練習</button>
+    
+    <div id="gameArea" class="hidden">
+      <div id="question"></div>
+      <div id="timer">剩餘時間：30 秒</div>
+      <input type="number" id="answer" placeholder="輸入答案" />
+      <br>
+      <button onclick="submitAnswer()">送出答案</button>
+      <div id="result"></div>
+    </div>
+    
+    <div id="summary" class="hidden"></div>
   </div>
 
   <script>
-    let num1, num2, operator, correctAnswer;
+    let currentQuestion = 0;
+    let score = 0;
+    let correct = 0;
+    let wrong = 0;
+    let operator = '';
+    let num1, num2, correctAnswer;
+    let timer, timeLeft = 30;
+    let maxQuestions = 20;
+    let mistakes = [];
+
+    function startGame() {
+      const modeSelect = document.getElementById("mode");
+      operator = modeSelect.value;
+      if (!operator) {
+        alert("請先選擇運算類型！");
+        return;
+      }
+      currentQuestion = 0;
+      score = 0;
+      correct = 0;
+      wrong = 0;
+      mistakes = [];
+
+      document.getElementById("gameArea").classList.remove("hidden");
+      document.getElementById("summary").classList.add("hidden");
+      nextQuestion();
+    }
 
     function generateQuestion() {
-      const operators = ['+', '-', '*'];
-      operator = operators[Math.floor(Math.random() * operators.length)];
-
       if (operator === '+') {
         num1 = getRandomInt(0, 300);
-        num2 = getRandomInt(0, 300 - num1); // 確保總和 ≤ 300
+        num2 = getRandomInt(0, 300 - num1);
         correctAnswer = num1 + num2;
       } else if (operator === '-') {
         num1 = getRandomInt(0, 300);
-        num2 = getRandomInt(0, num1); // 確保不為負數
+        num2 = getRandomInt(0, num1);
         correctAnswer = num1 - num2;
       } else if (operator === '*') {
         num1 = getRandomInt(1, 10);
         num2 = getRandomInt(1, 10);
         correctAnswer = num1 * num2;
       }
-
-      document.getElementById("question").innerText = `請問：${num1} ${operator} ${num2} = ?`;
-      document.getElementById("answer").value = '';
-      document.getElementById("result").innerText = '';
+      document.getElementById("question").innerText = `第 ${currentQuestion + 1} 題：${num1} ${operator} ${num2} = ?`;
     }
 
-    function checkAnswer() {
-      const userAnswer = parseInt(document.getElementById("answer").value, 10);
-      const resultText = document.getElementById("result");
+    function nextQuestion() {
+      if (currentQuestion >= maxQuestions) {
+        endGame();
+        return;
+      }
 
+      generateQuestion();
+      document.getElementById("answer").value = '';
+      document.getElementById("result").innerText = '';
+      timeLeft = 30;
+      document.getElementById("timer").innerText = `剩餘時間：30 秒`;
+
+      clearInterval(timer);
+      timer = setInterval(() => {
+        timeLeft--;
+        document.getElementById("timer").innerText = `剩餘時間：${timeLeft} 秒`;
+        if (timeLeft <= 0) {
+          clearInterval(timer);
+          handleWrong("（超時）");
+          currentQuestion++;
+          setTimeout(nextQuestion, 1000);
+        }
+      }, 1000);
+    }
+
+    function submitAnswer() {
+      clearInterval(timer);
+      const userAnswer = parseInt(document.getElementById("answer").value, 10);
       if (isNaN(userAnswer)) {
-        resultText.innerText = "請輸入數字答案喔～";
-        resultText.style.color = "orange";
+        document.getElementById("result").innerText = "請輸入數字";
         return;
       }
 
       if (userAnswer === correctAnswer) {
-        resultText.innerText = "✅ 答對了！";
-        resultText.style.color = "green";
+        score += 5;
+        correct++;
+        document.getElementById("result").innerText = "✅ 答對了！";
       } else {
-        resultText.innerText = `❌ 錯了，正確答案是 ${correctAnswer}`;
-        resultText.style.color = "red";
+        handleWrong(userAnswer);
       }
+      currentQuestion++;
+      setTimeout(nextQuestion, 1000);
+    }
+
+    function handleWrong(userInput) {
+      wrong++;
+      mistakes.push(`第 ${currentQuestion + 1} 題：${num1} ${operator} ${num2} = ${correctAnswer}（你輸入：${userInput}）`);
+      document.getElementById("result").innerText = `❌ 錯了，正確答案是 ${correctAnswer}`;
+    }
+
+    function endGame() {
+      clearInterval(timer);
+      document.getElementById("gameArea").classList.add("hidden");
+
+      let summaryHTML = `
+        <h2>結果總結</h2>
+        <p>得分：${score} / 100</p>
+        <p>答對：${correct} 題</p>
+        <p>答錯：${wrong} 題</p>
+      `;
+
+      if (mistakes.length > 0) {
+        summaryHTML += "<h3>錯誤題目：</h3><ul>";
+        mistakes.forEach(m => {
+          summaryHTML += `<li>${m}</li>`;
+        });
+        summaryHTML += "</ul>";
+      }
+
+      document.getElementById("summary").innerHTML = summaryHTML;
+      document.getElementById("summary").classList.remove("hidden");
     }
 
     function getRandomInt(min, max) {
