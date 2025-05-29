@@ -44,7 +44,7 @@
     <h1>數學練習遊戲</h1>
     
     <label for="mode">選擇練習類型：</label>
-    <select id="mode" onchange="showDifficulty()">
+    <select id="mode" onchange="resetGameAndShowDifficulty()">
       <option value="">請選擇</option>
       <option value="+">加法</option>
       <option value="-">減法</option>
@@ -53,7 +53,7 @@
     </select>
     <br>
     <label for="difficulty" id="difficultyLabel" class="hidden">選擇難易度：</label>
-    <select id="difficulty" class="hidden">
+    <select id="difficulty" class="hidden" onchange="resetGame()">
       <option value="">請選擇</option>
       </select>
     <br>
@@ -79,10 +79,29 @@
     let operator = '';
     let difficulty = '';
     let num1, num2, correctAnswer;
-    let timer, timeLeft = 40; // Changed to 40 seconds
+    let timeLeft = 40;
     let maxQuestions = 20;
     let mistakes = [];
-    let timerInterval; // To store the interval ID for the timer
+    let timerInterval;
+
+    // Function to reset game state when mode or difficulty changes
+    function resetGame() {
+      clearInterval(timerInterval); // Stop any running timer
+      document.getElementById("gameArea").classList.add("hidden"); // Hide game area
+      document.getElementById("summary").classList.add("hidden"); // Hide summary
+      document.getElementById("result").innerText = ''; // Clear result message
+      document.getElementById("answer").value = ''; // Clear answer input
+      document.getElementById("answer").disabled = false; // Enable input
+      document.querySelector("#gameArea button").disabled = false; // Enable button
+      timeLeft = 40; // Reset timer display
+      document.getElementById("timer").innerText = `剩餘時間：${timeLeft} 秒`;
+    }
+
+    // Call resetGame and then showDifficulty when mode changes
+    function resetGameAndShowDifficulty() {
+      resetGame();
+      showDifficulty();
+    }
 
     function showDifficulty() {
       const modeSelect = document.getElementById("mode");
@@ -91,7 +110,6 @@
       const selectedMode = modeSelect.value;
 
       difficultySelect.innerHTML = "<option value=''>請選擇</option>"; // Clear previous options
-
       if (selectedMode) {
         difficultyLabel.classList.remove("hidden");
         difficultySelect.classList.remove("hidden");
@@ -102,7 +120,6 @@
             <option value="difficult">困難 (101~1000)</option>
           `;
         } else if (selectedMode === '*') {
-          // Updated multiplication difficulty options
           difficultySelect.innerHTML += `
             <option value="simple">簡單 (一位數 X 一位數)</option>
             <option value="medium">中等 (二位數 X 一位數)</option>
@@ -139,15 +156,19 @@
 
       document.getElementById("gameArea").classList.remove("hidden");
       document.getElementById("summary").classList.add("hidden");
-      document.getElementById("result").innerText = ''; // Clear previous result
-      document.getElementById("answer").disabled = false; // Enable answer input
-      document.querySelector("#gameArea button").disabled = false; // Enable submit button
+      document.getElementById("result").innerText = '';
+      document.getElementById("answer").disabled = false;
+      document.querySelector("#gameArea button").disabled = false;
 
       nextQuestion();
     }
 
     function generateQuestion() {
-      let tempNum1, tempNum2, tempCorrectAnswer;
+      // Initialize with default/safe values to prevent 'undefined'
+      let tempNum1 = 0;
+      let tempNum2 = 0;
+      let tempCorrectAnswer = 0;
+      let questionGenerated = false; // Flag to indicate if a question was successfully generated
 
       if (operator === '+') {
         if (difficulty === 'simple') {
@@ -161,6 +182,7 @@
           tempNum2 = getRandomInt(0, 1000 - tempNum1);
         }
         tempCorrectAnswer = tempNum1 + tempNum2;
+        questionGenerated = true;
       } else if (operator === '-') {
         if (difficulty === 'simple') {
           tempNum1 = getRandomInt(0, 10);
@@ -173,41 +195,69 @@
           tempNum2 = getRandomInt(0, tempNum1);
         }
         tempCorrectAnswer = tempNum1 - tempNum2;
+        questionGenerated = true;
       } else if (operator === '*') {
-        // Updated multiplication logic
         if (difficulty === 'simple') {
           tempNum1 = getRandomInt(1, 9);
           tempNum2 = getRandomInt(1, 9);
         } else if (difficulty === 'medium') {
-          tempNum1 = getRandomInt(10, 99); // Two-digit
-          tempNum2 = getRandomInt(1, 9);     // One-digit
+          tempNum1 = getRandomInt(10, 99);
+          tempNum2 = getRandomInt(1, 9);
         } else if (difficulty === 'difficult') {
-          tempNum1 = getRandomInt(100, 999); // Three-digit
-          tempNum2 = getRandomInt(1, 9);     // One-digit
+          tempNum1 = getRandomInt(100, 999);
+          tempNum2 = getRandomInt(1, 9);
         }
         tempCorrectAnswer = tempNum1 * tempNum2;
+        questionGenerated = true;
       } else if (operator === '/') {
-        let divisor;
-        if (difficulty === 'simple') {
-          divisor = getRandomInt(1, 9);
-          tempNum2 = divisor;
-          tempNum1 = divisor * getRandomInt(1, 9); // Ensure integer result
-        } else if (difficulty === 'medium') {
-          divisor = getRandomInt(1, 9);
-          tempNum2 = divisor;
-          tempNum1 = divisor * getRandomInt(10, 99); // Ensure integer result
-        } else if (difficulty === 'difficult') {
-          divisor = getRandomInt(1, 9);
-          tempNum2 = divisor;
-          tempNum1 = divisor * getRandomInt(100, 999); // Ensure integer result
-        }
-        tempCorrectAnswer = tempNum1 / tempNum2;
+        let dividend, divisor, quotient;
+        let attempts = 0;
+        const MAX_ATTEMPTS = 100; // Limit attempts to prevent infinite loops
+
+        do {
+          attempts++;
+          if (attempts > MAX_ATTEMPTS) {
+            console.error("Failed to generate division question within limits after", MAX_ATTEMPTS, "attempts. Falling back to default.");
+            dividend = 10; divisor = 2; quotient = 5; // Fallback
+            break;
+          }
+
+          if (difficulty === 'simple') {
+            divisor = getRandomInt(2, 9);
+            quotient = getRandomInt(1, Math.floor(9 / divisor));
+            dividend = divisor * quotient;
+          } else if (difficulty === 'medium') {
+            divisor = getRandomInt(2, 9);
+            quotient = getRandomInt(Math.ceil(10 / divisor), Math.floor(99 / divisor));
+            dividend = divisor * quotient;
+          } else if (difficulty === 'difficult') {
+            divisor = getRandomInt(2, 9);
+            quotient = getRandomInt(Math.ceil(100 / divisor), Math.floor(999 / divisor));
+            dividend = divisor * quotient;
+          }
+        } while (dividend < 1 || quotient < 1 || 
+                 (difficulty === 'simple' && dividend.toString().length !== 1) ||
+                 (difficulty === 'medium' && dividend.toString().length !== 2) ||
+                 (difficulty === 'difficult' && dividend.toString().length !== 3) ||
+                 divisor.toString().length !== 1);
+
+        tempNum1 = dividend;
+        tempNum2 = divisor;
+        tempCorrectAnswer = quotient;
+        questionGenerated = true;
       }
-      
+
+      // Assign to global variables
       num1 = tempNum1;
       num2 = tempNum2;
       correctAnswer = tempCorrectAnswer;
-      document.getElementById("question").innerText = `第 ${currentQuestion + 1} 題：${num1} ${operator} ${num2} = ?`;
+
+      if (!questionGenerated) {
+        console.error("generateQuestion() was called but no valid question could be generated for operator:", operator, "difficulty:", difficulty);
+        document.getElementById("question").innerText = `無法生成題目，請檢查設定。`;
+      } else {
+        document.getElementById("question").innerText = `第 ${currentQuestion + 1} 題：${num1} ${operator} ${num2} = ?`;
+      }
     }
 
     function nextQuestion() {
@@ -219,35 +269,34 @@
       generateQuestion();
       document.getElementById("answer").value = '';
       document.getElementById("result").innerText = '';
-      document.getElementById("answer").disabled = false; // Enable answer input
-      document.querySelector("#gameArea button").disabled = false; // Enable submit button
+      document.getElementById("answer").disabled = false;
+      document.querySelector("#gameArea button").disabled = false;
 
-      timeLeft = 40; // Reset to 40 seconds
+      timeLeft = 40;
       document.getElementById("timer").innerText = `剩餘時間：${timeLeft} 秒`;
 
-      clearInterval(timerInterval); // Clear any existing timer
+      clearInterval(timerInterval);
       timerInterval = setInterval(() => {
         timeLeft--;
         document.getElementById("timer").innerText = `剩餘時間：${timeLeft} 秒`;
         if (timeLeft <= 0) {
           clearInterval(timerInterval);
-          document.getElementById("answer").disabled = true; // Disable input
-          document.querySelector("#gameArea button").disabled = true; // Disable submit button
+          document.getElementById("answer").disabled = true;
+          document.querySelector("#gameArea button").disabled = true;
           handleWrong("（超時）");
           currentQuestion++;
-          setTimeout(nextQuestion, 1500); // Wait a bit longer to show timeout message
+          setTimeout(nextQuestion, 1500);
         }
       }, 1000);
     }
 
     function submitAnswer() {
-      clearInterval(timerInterval); // Stop the timer immediately on submit
+      clearInterval(timerInterval);
       const userAnswer = parseInt(document.getElementById("answer").value, 10);
       if (isNaN(userAnswer)) {
         document.getElementById("result").innerText = "請輸入數字！";
-        document.getElementById("answer").disabled = false; // Keep input enabled if not a number
-        document.querySelector("#gameArea button").disabled = false; // Keep button enabled if not a number
-        // Re-start timer if input is invalid
+        document.getElementById("answer").disabled = false;
+        document.querySelector("#gameArea button").disabled = false;
         timerInterval = setInterval(() => {
           timeLeft--;
           document.getElementById("timer").innerText = `剩餘時間：${timeLeft} 秒`;
@@ -263,8 +312,8 @@
         return;
       }
       
-      document.getElementById("answer").disabled = true; // Disable input after submitting
-      document.querySelector("#gameArea button").disabled = true; // Disable button after submitting
+      document.getElementById("answer").disabled = true;
+      document.querySelector("#gameArea button").disabled = true;
 
       if (userAnswer === correctAnswer) {
         score += 5;
@@ -278,7 +327,7 @@
         handleWrong(userAnswer, hint);
       }
       currentQuestion++;
-      setTimeout(nextQuestion, 1500); // Wait a bit longer to show result
+      setTimeout(nextQuestion, 1500);
     }
 
     function handleWrong(userInput, hint = '') {
