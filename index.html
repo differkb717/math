@@ -1,371 +1,426 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>數學練習遊戲</title>
-  <style>
-    body {
-      font-family: "Arial", sans-serif;
-      background-color: #f0f8ff;
-      text-align: center;
-      padding: 20px;
-    }
-    .container {
-      background-color: #fff;
-      display: inline-block;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-      max-width: 90%;
-      width: 360px;
-    }
-    select, input[type="number"], button {
-      font-size: 1.2em;
-      margin: 10px;
-      padding: 10px;
-      width: 90%;
-      box-sizing: border-box;
-    }
-    #question, #timer, #result, #summary {
-      margin: 10px 0;
-      font-size: 1.2em;
-    }
-    #summary {
-      text-align: left;
-    }
-    .hidden {
-      display: none;
-    }
-  </style>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>數學練習遊戲</title>
+    <style>
+        body {
+            font-family: "Arial", sans-serif;
+            background-color: #f0f8ff;
+            text-align: center;
+            padding: 20px;
+        }
+        .container {
+            background-color: #fff;
+            display: inline-block;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            max-width: 90%;
+            width: 360px;
+        }
+        select, input[type="text"], button { /* Changed type="number" to type="text" */
+            font-size: 1.2em;
+            margin: 10px;
+            padding: 10px;
+            width: 90%;
+            box-sizing: border-box;
+        }
+        #question, #timer, #result, #summary {
+            margin: 10px 0;
+            font-size: 1.2em;
+        }
+        #summary {
+            text-align: left;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <h1>數學練習遊戲</h1>
-    
-    <label for="mode">選擇練習類型：</label>
-    <select id="mode" onchange="resetGameAndShowDifficulty()">
-      <option value="">請選擇</option>
-      <option value="+">加法</option>
-      <option value="-">減法</option>
-      <option value="*">乘法</option>
-      <option value="/">除法</option>
-    </select>
-    <br>
-    <label for="difficulty" id="difficultyLabel" class="hidden">選擇難易度：</label>
-    <select id="difficulty" class="hidden" onchange="resetGame()">
-      <option value="">請選擇</option>
-      </select>
-    <br>
-    <button onclick="startGame()">開始練習</button>
-    
-    <div id="gameArea" class="hidden">
-      <div id="question"></div>
-      <div id="timer">剩餘時間：40 秒</div>
-      <input type="number" id="answer" placeholder="輸入答案" />
-      <br>
-      <button onclick="submitAnswer()">送出答案</button>
-      <div id="result"></div>
+    <div class="container">
+        <h1>數學練習遊戲</h1>
+
+        <label for="mode">選擇練習類型：</label>
+        <select id="mode" onchange="resetGameAndShowDifficulty()">
+            <option value="">請選擇</option>
+            <option value="+">加法</option>
+            <option value="-">減法</option>
+            <option value="*">乘法</option>
+            <option value="/">除法</option>
+        </select>
+        <br>
+        <label for="difficulty" id="difficultyLabel" class="hidden">選擇難易度：</label>
+        <select id="difficulty" class="hidden" onchange="resetGame()">
+            <option value="">請選擇</option>
+        </select>
+        <br>
+        <button onclick="startGame()">開始練習</button>
+
+        <div id="gameArea" class="hidden">
+            <div id="question"></div>
+            <div id="timer">剩餘時間：40 秒</div>
+            <input type="text" id="answer" placeholder="輸入答案" /> <br>
+            <button onclick="submitAnswer()">送出答案</button>
+            <div id="result"></div>
+        </div>
+
+        <div id="summary" class="hidden"></div>
     </div>
-    
-    <div id="summary" class="hidden"></div>
-  </div>
 
-  <script>
-    let currentQuestion = 0;
-    let score = 0;
-    let correct = 0;
-    let wrong = 0;
-    let operator = '';
-    let difficulty = '';
-    let num1, num2, correctAnswer;
-    let timeLeft = 40;
-    let maxQuestions = 20;
-    let mistakes = [];
-    let timerInterval;
+    <script>
+        let currentQuestion = 0;
+        let score = 0;
+        let correct = 0;
+        let wrong = 0;
+        let operator = '';
+        let difficulty = '';
+        let num1, num2;
+        let correctAnswer; // This will now be an object for division { quotient, remainder }
+        let timeLeft = 40;
+        let maxQuestions = 20;
+        let mistakes = [];
+        let timerInterval;
 
-    // Function to reset game state when mode or difficulty changes
-    function resetGame() {
-      clearInterval(timerInterval); // Stop any running timer
-      document.getElementById("gameArea").classList.add("hidden"); // Hide game area
-      document.getElementById("summary").classList.add("hidden"); // Hide summary
-      document.getElementById("result").innerText = ''; // Clear result message
-      document.getElementById("answer").value = ''; // Clear answer input
-      document.getElementById("answer").disabled = false; // Enable input
-      document.querySelector("#gameArea button").disabled = false; // Enable button
-      timeLeft = 40; // Reset timer display
-      document.getElementById("timer").innerText = `剩餘時間：${timeLeft} 秒`;
-    }
-
-    // Call resetGame and then showDifficulty when mode changes
-    function resetGameAndShowDifficulty() {
-      resetGame();
-      showDifficulty();
-    }
-
-    function showDifficulty() {
-      const modeSelect = document.getElementById("mode");
-      const difficultySelect = document.getElementById("difficulty");
-      const difficultyLabel = document.getElementById("difficultyLabel");
-      const selectedMode = modeSelect.value;
-
-      difficultySelect.innerHTML = "<option value=''>請選擇</option>"; // Clear previous options
-      if (selectedMode) {
-        difficultyLabel.classList.remove("hidden");
-        difficultySelect.classList.remove("hidden");
-        if (selectedMode === '+' || selectedMode === '-') {
-          difficultySelect.innerHTML += `
-            <option value="simple">簡單 (0~10)</option>
-            <option value="medium">中等 (11~100)</option>
-            <option value="difficult">困難 (101~1000)</option>
-          `;
-        } else if (selectedMode === '*') {
-          difficultySelect.innerHTML += `
-            <option value="simple">簡單 (一位數 X 一位數)</option>
-            <option value="medium">中等 (二位數 X 一位數)</option>
-            <option value="difficult">困難 (三位數 X 一位數)</option>
-          `;
-        } else if (selectedMode === '/') {
-          difficultySelect.innerHTML += `
-            <option value="simple">簡單 (一位數 ÷ 一位數)</option>
-            <option value="medium">中等 (二位數 ÷ 一位數)</option>
-            <option value="difficult">困難 (三位數 ÷ 一位數)</option>
-          `;
+        // Function to reset game state when mode or difficulty changes
+        function resetGame() {
+            clearInterval(timerInterval); // Stop any running timer
+            document.getElementById("gameArea").classList.add("hidden"); // Hide game area
+            document.getElementById("summary").classList.add("hidden"); // Hide summary
+            document.getElementById("result").innerText = ''; // Clear result message
+            document.getElementById("answer").value = ''; // Clear answer input
+            document.getElementById("answer").disabled = false; // Enable input
+            document.querySelector("#gameArea button").disabled = false; // Enable button
+            timeLeft = 40; // Reset timer display
+            document.getElementById("timer").innerText = `剩餘時間：${timeLeft} 秒`;
         }
-      } else {
-        difficultyLabel.classList.add("hidden");
-        difficultySelect.classList.add("hidden");
-      }
-    }
 
-    function startGame() {
-      const modeSelect = document.getElementById("mode");
-      const difficultySelect = document.getElementById("difficulty");
-      operator = modeSelect.value;
-      difficulty = difficultySelect.value;
-
-      if (!operator || !difficulty) {
-        alert("請先選擇運算類型和難易度！");
-        return;
-      }
-      currentQuestion = 0;
-      score = 0;
-      correct = 0;
-      wrong = 0;
-      mistakes = [];
-
-      document.getElementById("gameArea").classList.remove("hidden");
-      document.getElementById("summary").classList.add("hidden");
-      document.getElementById("result").innerText = '';
-      document.getElementById("answer").disabled = false;
-      document.querySelector("#gameArea button").disabled = false;
-
-      nextQuestion();
-    }
-
-    function generateQuestion() {
-      // Initialize with default/safe values to prevent 'undefined'
-      let tempNum1 = 0;
-      let tempNum2 = 0;
-      let tempCorrectAnswer = 0;
-      let questionGenerated = false; // Flag to indicate if a question was successfully generated
-
-      if (operator === '+') {
-        if (difficulty === 'simple') {
-          tempNum1 = getRandomInt(0, 10);
-          tempNum2 = getRandomInt(0, 10 - tempNum1);
-        } else if (difficulty === 'medium') {
-          tempNum1 = getRandomInt(11, 100);
-          tempNum2 = getRandomInt(0, 100 - tempNum1);
-        } else if (difficulty === 'difficult') {
-          tempNum1 = getRandomInt(101, 1000);
-          tempNum2 = getRandomInt(0, 1000 - tempNum1);
+        // Call resetGame and then showDifficulty when mode changes
+        function resetGameAndShowDifficulty() {
+            resetGame();
+            showDifficulty();
         }
-        tempCorrectAnswer = tempNum1 + tempNum2;
-        questionGenerated = true;
-      } else if (operator === '-') {
-        if (difficulty === 'simple') {
-          tempNum1 = getRandomInt(0, 10);
-          tempNum2 = getRandomInt(0, tempNum1);
-        } else if (difficulty === 'medium') {
-          tempNum1 = getRandomInt(11, 100);
-          tempNum2 = getRandomInt(0, tempNum1);
-        } else if (difficulty === 'difficult') {
-          tempNum1 = getRandomInt(101, 1000);
-          tempNum2 = getRandomInt(0, tempNum1);
+
+        function showDifficulty() {
+            const modeSelect = document.getElementById("mode");
+            const difficultySelect = document.getElementById("difficulty");
+            const difficultyLabel = document.getElementById("difficultyLabel");
+            const selectedMode = modeSelect.value;
+
+            difficultySelect.innerHTML = "<option value=''>請選擇</option>"; // Clear previous options
+            if (selectedMode) {
+                difficultyLabel.classList.remove("hidden");
+                difficultySelect.classList.remove("hidden");
+                if (selectedMode === '+' || selectedMode === '-') {
+                    difficultySelect.innerHTML += `
+                        <option value="simple">簡單 (0~10)</option>
+                        <option value="medium">中等 (11~100)</option>
+                        <option value="difficult">困難 (101~1000)</option>
+                    `;
+                } else if (selectedMode === '*') {
+                    difficultySelect.innerHTML += `
+                        <option value="simple">簡單 (一位數 X 一位數)</option>
+                        <option value="medium">中等 (二位數 X 一位數)</option>
+                        <option value="difficult">困難 (三位數 X 一位數)</option>
+                    `;
+                } else if (selectedMode === '/') {
+                    difficultySelect.innerHTML += `
+                        <option value="simple">簡單 (一位數 ÷ 一位數)</option>
+                        <option value="medium">中等 (二位數 ÷ 一位數)</option>
+                        <option value="difficult">困難 (三位數 ÷ 一位數)</option>
+                    `;
+                }
+            } else {
+                difficultyLabel.classList.add("hidden");
+                difficultySelect.classList.add("hidden");
+            }
         }
-        tempCorrectAnswer = tempNum1 - tempNum2;
-        questionGenerated = true;
-      } else if (operator === '*') {
-        if (difficulty === 'simple') {
-          tempNum1 = getRandomInt(1, 9);
-          tempNum2 = getRandomInt(1, 9);
-        } else if (difficulty === 'medium') {
-          tempNum1 = getRandomInt(10, 99);
-          tempNum2 = getRandomInt(1, 9);
-        } else if (difficulty === 'difficult') {
-          tempNum1 = getRandomInt(100, 999);
-          tempNum2 = getRandomInt(1, 9);
+
+        function startGame() {
+            const modeSelect = document.getElementById("mode");
+            const difficultySelect = document.getElementById("difficulty");
+            operator = modeSelect.value;
+            difficulty = difficultySelect.value;
+
+            if (!operator || !difficulty) {
+                alert("請先選擇運算類型和難易度！");
+                return;
+            }
+            currentQuestion = 0;
+            score = 0;
+            correct = 0;
+            wrong = 0;
+            mistakes = [];
+
+            document.getElementById("gameArea").classList.remove("hidden");
+            document.getElementById("summary").classList.add("hidden");
+            document.getElementById("result").innerText = '';
+            document.getElementById("answer").disabled = false;
+            document.querySelector("#gameArea button").disabled = false;
+            document.getElementById("answer").placeholder = (operator === '/') ? "輸入 商,餘數 (例如: 3,2)" : "輸入答案";
+
+
+            nextQuestion();
         }
-        tempCorrectAnswer = tempNum1 * tempNum2;
-        questionGenerated = true;
-      } else if (operator === '/') {
-        let dividend, divisor, quotient;
-        let attempts = 0;
-        const MAX_ATTEMPTS = 100; // Limit attempts to prevent infinite loops
 
-        do {
-          attempts++;
-          if (attempts > MAX_ATTEMPTS) {
-            console.error("Failed to generate division question within limits after", MAX_ATTEMPTS, "attempts. Falling back to default.");
-            dividend = 10; divisor = 2; quotient = 5; // Fallback
-            break;
-          }
+        function generateQuestion() {
+            let tempNum1 = 0;
+            let tempNum2 = 0;
+            let tempCorrectAnswer; // Will be an object for division
+            let questionGenerated = false;
 
-          if (difficulty === 'simple') {
-            divisor = getRandomInt(2, 9);
-            quotient = getRandomInt(1, Math.floor(9 / divisor));
-            dividend = divisor * quotient;
-          } else if (difficulty === 'medium') {
-            divisor = getRandomInt(2, 9);
-            quotient = getRandomInt(Math.ceil(10 / divisor), Math.floor(99 / divisor));
-            dividend = divisor * quotient;
-          } else if (difficulty === 'difficult') {
-            divisor = getRandomInt(2, 9);
-            quotient = getRandomInt(Math.ceil(100 / divisor), Math.floor(999 / divisor));
-            dividend = divisor * quotient;
-          }
-        } while (dividend < 1 || quotient < 1 || 
-                 (difficulty === 'simple' && dividend.toString().length !== 1) ||
-                 (difficulty === 'medium' && dividend.toString().length !== 2) ||
-                 (difficulty === 'difficult' && dividend.toString().length !== 3) ||
-                 divisor.toString().length !== 1);
+            if (operator === '+') {
+                if (difficulty === 'simple') {
+                    tempNum1 = getRandomInt(0, 10);
+                    tempNum2 = getRandomInt(0, 10 - tempNum1);
+                } else if (difficulty === 'medium') {
+                    tempNum1 = getRandomInt(11, 100);
+                    tempNum2 = getRandomInt(0, 100 - tempNum1);
+                } else if (difficulty === 'difficult') {
+                    tempNum1 = getRandomInt(101, 1000);
+                    tempNum2 = getRandomInt(0, 1000 - tempNum1);
+                }
+                tempCorrectAnswer = tempNum1 + tempNum2;
+                questionGenerated = true;
+            } else if (operator === '-') {
+                if (difficulty === 'simple') {
+                    tempNum1 = getRandomInt(0, 10);
+                    tempNum2 = getRandomInt(0, tempNum1);
+                } else if (difficulty === 'medium') {
+                    tempNum1 = getRandomInt(11, 100);
+                    tempNum2 = getRandomInt(0, tempNum1);
+                } else if (difficulty === 'difficult') {
+                    tempNum1 = getRandomInt(101, 1000);
+                    tempNum2 = getRandomInt(0, tempNum1);
+                }
+                tempCorrectAnswer = tempNum1 - tempNum2;
+                questionGenerated = true;
+            } else if (operator === '*') {
+                if (difficulty === 'simple') {
+                    tempNum1 = getRandomInt(1, 9);
+                    tempNum2 = getRandomInt(1, 9);
+                } else if (difficulty === 'medium') {
+                    tempNum1 = getRandomInt(10, 99);
+                    tempNum2 = getRandomInt(1, 9);
+                } else if (difficulty === 'difficult') {
+                    tempNum1 = getRandomInt(100, 999);
+                    tempNum2 = getRandomInt(1, 9);
+                }
+                tempCorrectAnswer = tempNum1 * tempNum2;
+                questionGenerated = true;
+            } else if (operator === '/') {
+                let dividend, divisor;
+                
+                if (difficulty === 'simple') {
+                    divisor = getRandomInt(2, 9); // 除數為一位數 (2-9)
+                    // 被除數必須是 1 到 9 之間，且要大於等於除數
+                    // 確保商不會超過 9，餘數不會超過除數-1
+                    let maxPossibleDividend = Math.min(9, divisor * 9 + (divisor - 1)); // 考慮最大商9，最大餘數divisor-1
+                    dividend = getRandomInt(divisor, maxPossibleDividend); // 被除數為一位數
+                } else if (difficulty === 'medium') {
+                    divisor = getRandomInt(2, 9); // 個位數除數
+                    dividend = getRandomInt(10, 99); // 兩位數被除數
+                } else if (difficulty === 'difficult') {
+                    divisor = getRandomInt(2, 9); // 個位數除數
+                    dividend = getRandomInt(100, 999); // 三位數被除數
+                }
 
-        tempNum1 = dividend;
-        tempNum2 = divisor;
-        tempCorrectAnswer = quotient;
-        questionGenerated = true;
-      }
+                if (divisor === 0) divisor = 1; // Prevent division by zero
+                const quotient = Math.floor(dividend / divisor);
+                const remainder = dividend % divisor;
 
-      // Assign to global variables
-      num1 = tempNum1;
-      num2 = tempNum2;
-      correctAnswer = tempCorrectAnswer;
+                tempNum1 = dividend;
+                tempNum2 = divisor;
+                tempCorrectAnswer = { quotient: quotient, remainder: remainder };
+                questionGenerated = true;
+            }
 
-      if (!questionGenerated) {
-        console.error("generateQuestion() was called but no valid question could be generated for operator:", operator, "difficulty:", difficulty);
-        document.getElementById("question").innerText = `無法生成題目，請檢查設定。`;
-      } else {
-        document.getElementById("question").innerText = `第 ${currentQuestion + 1} 題：${num1} ${operator} ${num2} = ?`;
-      }
-    }
+            num1 = tempNum1;
+            num2 = tempNum2;
+            correctAnswer = tempCorrectAnswer;
 
-    function nextQuestion() {
-      if (currentQuestion >= maxQuestions) {
-        endGame();
-        return;
-      }
-
-      generateQuestion();
-      document.getElementById("answer").value = '';
-      document.getElementById("result").innerText = '';
-      document.getElementById("answer").disabled = false;
-      document.querySelector("#gameArea button").disabled = false;
-
-      timeLeft = 40;
-      document.getElementById("timer").innerText = `剩餘時間：${timeLeft} 秒`;
-
-      clearInterval(timerInterval);
-      timerInterval = setInterval(() => {
-        timeLeft--;
-        document.getElementById("timer").innerText = `剩餘時間：${timeLeft} 秒`;
-        if (timeLeft <= 0) {
-          clearInterval(timerInterval);
-          document.getElementById("answer").disabled = true;
-          document.querySelector("#gameArea button").disabled = true;
-          handleWrong("（超時）");
-          currentQuestion++;
-          setTimeout(nextQuestion, 1500);
+            if (!questionGenerated) {
+                console.error("generateQuestion() was called but no valid question could be generated for operator:", operator, "difficulty:", difficulty);
+                document.getElementById("question").innerText = `無法生成題目，請檢查設定。`;
+            } else {
+                if (operator === '/') {
+                    document.getElementById("question").innerText = `第 ${currentQuestion + 1} 題：${num1} ${operator} ${num2} = ? (商和餘數)`;
+                } else {
+                    document.getElementById("question").innerText = `第 ${currentQuestion + 1} 題：${num1} ${operator} ${num2} = ?`;
+                }
+            }
         }
-      }, 1000);
-    }
 
-    function submitAnswer() {
-      clearInterval(timerInterval);
-      const userAnswer = parseInt(document.getElementById("answer").value, 10);
-      if (isNaN(userAnswer)) {
-        document.getElementById("result").innerText = "請輸入數字！";
-        document.getElementById("answer").disabled = false;
-        document.querySelector("#gameArea button").disabled = false;
-        timerInterval = setInterval(() => {
-          timeLeft--;
-          document.getElementById("timer").innerText = `剩餘時間：${timeLeft} 秒`;
-          if (timeLeft <= 0) {
+        function nextQuestion() {
+            if (currentQuestion >= maxQuestions) {
+                endGame();
+                return;
+            }
+
+            generateQuestion();
+            document.getElementById("answer").value = '';
+            document.getElementById("result").innerText = '';
+            document.getElementById("answer").disabled = false;
+            document.querySelector("#gameArea button").disabled = false;
+            document.getElementById("answer").focus(); // Focus on the input field
+
+            timeLeft = 40;
+            document.getElementById("timer").innerText = `剩餘時間：${timeLeft} 秒`;
+
             clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                document.getElementById("timer").innerText = `剩餘時間：${timeLeft} 秒`;
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    document.getElementById("answer").disabled = true;
+                    document.querySelector("#gameArea button").disabled = true;
+                    if (operator === '/') {
+                        handleWrong({ quotient: 'N/A', remainder: 'N/A' }, "（超時）"); // Pass a dummy object for timeout
+                    } else {
+                        handleWrong("（超時）");
+                    }
+                    currentQuestion++;
+                    setTimeout(nextQuestion, 1500);
+                }
+            }, 1000);
+        }
+
+        function submitAnswer() {
+            clearInterval(timerInterval);
+            const userAnswerInput = document.getElementById("answer").value.trim();
+
+            let isCorrect = false;
+            let parsedUserAnswer;
+
+            if (operator === '/') {
+                const parts = userAnswerInput.split(/[,，\s]+/).map(part => parseInt(part.trim(), 10)); // Split by comma, Chinese comma, or space
+                if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+                    parsedUserAnswer = { quotient: parts[0], remainder: parts[1] };
+                    if (parsedUserAnswer.quotient === correctAnswer.quotient && parsedUserAnswer.remainder === correctAnswer.remainder) {
+                        isCorrect = true;
+                    }
+                } else {
+                    document.getElementById("result").innerText = "請輸入商和餘數 (例如: 3,2)！";
+                    document.getElementById("answer").disabled = false;
+                    document.querySelector("#gameArea button").disabled = false;
+                    // Restart timer for current question
+                    timerInterval = setInterval(() => {
+                        timeLeft--;
+                        document.getElementById("timer").innerText = `剩餘時間：${timeLeft} 秒`;
+                        if (timeLeft <= 0) {
+                            clearInterval(timerInterval);
+                            document.getElementById("answer").disabled = true;
+                            document.querySelector("#gameArea button").disabled = true;
+                            handleWrong({ quotient: 'N/A', remainder: 'N/A' }, "（超時）");
+                            currentQuestion++;
+                            setTimeout(nextQuestion, 1500);
+                        }
+                    }, 1000);
+                    return;
+                }
+            } else {
+                parsedUserAnswer = parseInt(userAnswerInput, 10);
+                if (isNaN(parsedUserAnswer)) {
+                    document.getElementById("result").innerText = "請輸入數字！";
+                    document.getElementById("answer").disabled = false;
+                    document.querySelector("#gameArea button").disabled = false;
+                    // Restart timer for current question
+                    timerInterval = setInterval(() => {
+                        timeLeft--;
+                        document.getElementById("timer").innerText = `剩餘時間：${timeLeft} 秒`;
+                        if (timeLeft <= 0) {
+                            clearInterval(timerInterval);
+                            document.getElementById("answer").disabled = true;
+                            document.querySelector("#gameArea button").disabled = true;
+                            handleWrong("（超時）");
+                            currentQuestion++;
+                            setTimeout(nextQuestion, 1500);
+                        }
+                    }, 1000);
+                    return;
+                }
+                if (parsedUserAnswer === correctAnswer) {
+                    isCorrect = true;
+                }
+            }
+
             document.getElementById("answer").disabled = true;
             document.querySelector("#gameArea button").disabled = true;
-            handleWrong("（超時）");
+
+            if (isCorrect) {
+                score += 5;
+                correct++;
+                document.getElementById("result").innerText = "✅ 答對了！";
+            } else {
+                handleWrong(parsedUserAnswer);
+            }
             currentQuestion++;
             setTimeout(nextQuestion, 1500);
-          }
-        }, 1000);
-        return;
-      }
-      
-      document.getElementById("answer").disabled = true;
-      document.querySelector("#gameArea button").disabled = true;
-
-      if (userAnswer === correctAnswer) {
-        score += 5;
-        correct++;
-        document.getElementById("result").innerText = "✅ 答對了！";
-      } else {
-        let hint = '';
-        if (operator === '/') {
-          hint = `提示：除法是乘法的逆運算，${num2} 乘以 ${correctAnswer} 等於 ${num1}`;
         }
-        handleWrong(userAnswer, hint);
-      }
-      currentQuestion++;
-      setTimeout(nextQuestion, 1500);
-    }
 
-    function handleWrong(userInput, hint = '') {
-      wrong++;
-      let mistakeText = `第 ${currentQuestion + 1} 題：${num1} ${operator} ${num2} = ${correctAnswer}（你輸入：${userInput}）`;
-      if (hint) {
-        mistakeText += ` ${hint}`;
-      }
-      mistakes.push(mistakeText);
-      document.getElementById("result").innerText = `❌ 錯了，正確答案是 ${correctAnswer}. ${hint}`;
-    }
+        function handleWrong(userInput, timeoutMsg = '') {
+            wrong++;
+            let mistakeText = '';
+            let hint = '';
 
-    function endGame() {
-      clearInterval(timerInterval);
-      document.getElementById("gameArea").classList.add("hidden");
+            if (operator === '/') {
+                const correctQuotient = correctAnswer.quotient;
+                const correctRemainder = correctAnswer.remainder;
+                const userQuotient = (typeof userInput === 'object' && userInput !== null) ? userInput.quotient : 'N/A';
+                const userRemainder = (typeof userInput === 'object' && userInput !== null) ? userInput.remainder : 'N/A';
 
-      let summaryHTML = `
-        <h2>結果總結</h2>
-        <p>得分：${score} / 100</p>
-        <p>答對：${correct} 題</p>
-        <p>答錯：${wrong} 題</p>
-      `;
+                mistakeText = `第 ${currentQuestion + 1} 題：${num1} ${operator} ${num2} = 商 ${correctQuotient} 餘 ${correctRemainder}`;
+                if (timeoutMsg) {
+                     mistakeText += `（${timeoutMsg}）`;
+                     document.getElementById("result").innerText = `❌ 超時了，正確答案是 商 ${correctQuotient} 餘 ${correctRemainder}.`;
+                } else {
+                     mistakeText += `（你輸入：商 ${userQuotient} 餘 ${userRemainder}）`;
+                     document.getElementById("result").innerText = `❌ 錯了，正確答案是 商 ${correctQuotient} 餘 ${correctRemainder}.`;
+                }
+                hint = `提示：${num2} 乘以 ${correctQuotient} 加上 ${correctRemainder} 等於 ${num1}`;
+            } else {
+                mistakeText = `第 ${currentQuestion + 1} 題：${num1} ${operator} ${num2} = ${correctAnswer}`;
+                if (timeoutMsg) {
+                    mistakeText += `（${timeoutMsg}）`;
+                    document.getElementById("result").innerText = `❌ 超時了，正確答案是 ${correctAnswer}.`;
+                } else {
+                    mistakeText += `（你輸入：${userInput}）`;
+                    document.getElementById("result").innerText = `❌ 錯了，正確答案是 ${correctAnswer}.`;
+                }
+            }
+            mistakes.push(mistakeText + (hint ? ` ${hint}` : ''));
+        }
 
-      if (mistakes.length > 0) {
-        summaryHTML += "<h3>錯誤題目：</h3><ul>";
-        mistakes.forEach(m => {
-          summaryHTML += `<li>${m}</li>`;
-        });
-        summaryHTML += "</ul>";
-      }
 
-      document.getElementById("summary").innerHTML = summaryHTML;
-      document.getElementById("summary").classList.remove("hidden");
-    }
+        function endGame() {
+            clearInterval(timerInterval);
+            document.getElementById("gameArea").classList.add("hidden");
 
-    function getRandomInt(min, max) {
-      return Math.floor(Math.random() * (max - min + 1)) + min;
-    }
-  </script>
+            let summaryHTML = `
+                <h2>結果總結</h2>
+                <p>得分：${score} / 100</p>
+                <p>答對：${correct} 題</p>
+                <p>答錯：${wrong} 題</p>
+            `;
+
+            if (mistakes.length > 0) {
+                summaryHTML += "<h3>錯誤題目：</h3><ul>";
+                mistakes.forEach(m => {
+                    summaryHTML += `<li>${m}</li>`;
+                });
+                summaryHTML += "</ul>";
+            }
+
+            document.getElementById("summary").innerHTML = summaryHTML;
+            document.getElementById("summary").classList.remove("hidden");
+        }
+
+        function getRandomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+    </script>
 </body>
 </html>
