@@ -20,7 +20,7 @@
             max-width: 90%;
             width: 360px;
         }
-        select, input[type="text"], button { /* Changed type="number" to type="text" */
+        select, input[type="text"], button {
             font-size: 1.2em;
             margin: 10px;
             padding: 10px;
@@ -36,6 +36,25 @@
         }
         .hidden {
             display: none;
+        }
+        /* Styles for vertical calculation hint */
+        .vertical-hint {
+            font-family: 'Courier New', monospace;
+            font-size: 1.2em;
+            text-align: center;
+            margin: 20px auto;
+            border: 1px solid #ccc;
+            padding: 10px;
+            background-color: #f9f9f9;
+            white-space: pre; /* Preserves whitespace and line breaks */
+            max-width: 250px;
+        }
+        .division-hint {
+            text-align: left;
+            padding-left: 20px;
+        }
+        .underline {
+            text-decoration: underline;
         }
     </style>
 </head>
@@ -61,7 +80,7 @@
 
         <div id="gameArea" class="hidden">
             <div id="question"></div>
-            <div id="timer">剩餘時間：40 秒</div>
+            <div id="verticalHint" class="vertical-hint"></div> <div id="timer">剩餘時間：50 秒</div>
             <input type="text" id="answer" placeholder="輸入答案" /> <br>
             <button onclick="submitAnswer()">送出答案</button>
             <div id="result"></div>
@@ -78,8 +97,8 @@
         let operator = '';
         let difficulty = '';
         let num1, num2;
-        let correctAnswer; // This will now be an object for division { quotient, remainder }
-        let timeLeft = 40;
+        let correctAnswer; // This will now be an object for division { quotient, remainder } or a number
+        let timeLeft = 50;
         let maxQuestions = 20;
         let mistakes = [];
         let timerInterval;
@@ -93,7 +112,9 @@
             document.getElementById("answer").value = ''; // Clear answer input
             document.getElementById("answer").disabled = false; // Enable input
             document.querySelector("#gameArea button").disabled = false; // Enable button
-            timeLeft = 40; // Reset timer display
+            document.getElementById("verticalHint").innerHTML = ''; // Clear hint
+            document.getElementById("verticalHint").classList.remove('division-hint'); // Remove specific class
+            timeLeft = 50; // Reset timer display
             document.getElementById("timer").innerText = `剩餘時間：${timeLeft} 秒`;
         }
 
@@ -214,17 +235,20 @@
                 let dividend, divisor;
                 
                 if (difficulty === 'simple') {
-                    divisor = getRandomInt(2, 9); // 除數為一位數 (2-9)
-                    // 被除數必須是 1 到 9 之間，且要大於等於除數
-                    // 確保商不會超過 9，餘數不會超過除數-1
-                    let maxPossibleDividend = Math.min(9, divisor * 9 + (divisor - 1)); // 考慮最大商9，最大餘數divisor-1
-                    dividend = getRandomInt(divisor, maxPossibleDividend); // 被除數為一位數
+                    divisor = getRandomInt(2, 9);
+                    // Ensure dividend is within 1-digit range and greater than or equal to divisor
+                    // and quotient is also 1-digit
+                    let maxQuotient = 9;
+                    dividend = getRandomInt(divisor, divisor * maxQuotient + (divisor - 1));
+                    if (dividend > 9) { // Ensure dividend is 1-digit
+                         dividend = getRandomInt(divisor, 9);
+                    }
                 } else if (difficulty === 'medium') {
-                    divisor = getRandomInt(2, 9); // 個位數除數
-                    dividend = getRandomInt(10, 99); // 兩位數被除數
+                    divisor = getRandomInt(2, 9);
+                    dividend = getRandomInt(10, 99); // Two-digit dividend
                 } else if (difficulty === 'difficult') {
-                    divisor = getRandomInt(2, 9); // 個位數除數
-                    dividend = getRandomInt(100, 999); // 三位數被除數
+                    divisor = getRandomInt(2, 9);
+                    dividend = getRandomInt(100, 999); // Three-digit dividend
                 }
 
                 if (divisor === 0) divisor = 1; // Prevent division by zero
@@ -241,14 +265,58 @@
             num2 = tempNum2;
             correctAnswer = tempCorrectAnswer;
 
+            const verticalHintDiv = document.getElementById("verticalHint");
+            verticalHintDiv.innerHTML = ''; // Clear previous hint
+            verticalHintDiv.classList.remove('division-hint'); // Reset specific class
+
             if (!questionGenerated) {
                 console.error("generateQuestion() was called but no valid question could be generated for operator:", operator, "difficulty:", difficulty);
                 document.getElementById("question").innerText = `無法生成題目，請檢查設定。`;
             } else {
+                let questionText = `第 ${currentQuestion + 1} 題：${num1} ${operator} ${num2} = ?`;
                 if (operator === '/') {
-                    document.getElementById("question").innerText = `第 ${currentQuestion + 1} 題：${num1} ${operator} ${num2} = ? (商和餘數)`;
-                } else {
-                    document.getElementById("question").innerText = `第 ${currentQuestion + 1} 題：${num1} ${operator} ${num2} = ?`;
+                    questionText += ` (商和餘數)`;
+                }
+                document.getElementById("question").innerText = questionText;
+                
+                // Generate vertical calculation hint
+                if (operator === '+') {
+                    const maxLen = Math.max(num1.toString().length, num2.toString().length);
+                    const hint = 
+`  ${String(num1).padStart(maxLen, ' ')}
++ ${String(num2).padStart(maxLen, ' ')}
+${'-'.repeat(maxLen + 2)}`;
+                    verticalHintDiv.innerText = hint;
+                } else if (operator === '-') {
+                    const maxLen = Math.max(num1.toString().length, num2.toString().length);
+                    const hint = 
+`  ${String(num1).padStart(maxLen, ' ')}
+- ${String(num2).padStart(maxLen, ' ')}
+${'-'.repeat(maxLen + 2)}`;
+                    verticalHintDiv.innerText = hint;
+                } else if (operator === '*') {
+                    const maxLen1 = num1.toString().length;
+                    const maxLen2 = num2.toString().length;
+                    const productLen = (num1 * num2).toString().length;
+                    let hint = 
+`${String(num1).padStart(productLen, ' ')}
+X ${String(num2).padStart(productLen - 1, ' ')}
+${'-'.repeat(productLen + 1)}`;
+                    verticalHintDiv.innerText = hint;
+                } else if (operator === '/') {
+                    // For division, a more visual hint is needed
+                    verticalHintDiv.classList.add('division-hint');
+                    const dividendStr = num1.toString();
+                    const divisorStr = num2.toString();
+                    const quotientLen = correctAnswer.quotient.toString().length;
+                    const remainderLen = correctAnswer.remainder.toString().length;
+                    
+                    let hint = `      ${'_'.repeat(quotientLen + 2)}\n`;
+                    hint += `  ${divisorStr} | ${dividendStr}\n`;
+                    hint += `        \n`; // Space for intermediate calculations
+                    hint += `        \n`; // Space for intermediate calculations
+                    hint += `        \n`; // Space for intermediate calculations
+                    verticalHintDiv.innerText = hint;
                 }
             }
         }
@@ -266,7 +334,7 @@
             document.querySelector("#gameArea button").disabled = false;
             document.getElementById("answer").focus(); // Focus on the input field
 
-            timeLeft = 40;
+            timeLeft = 50;
             document.getElementById("timer").innerText = `剩餘時間：${timeLeft} 秒`;
 
             clearInterval(timerInterval);
@@ -374,11 +442,11 @@
 
                 mistakeText = `第 ${currentQuestion + 1} 題：${num1} ${operator} ${num2} = 商 ${correctQuotient} 餘 ${correctRemainder}`;
                 if (timeoutMsg) {
-                     mistakeText += `（${timeoutMsg}）`;
-                     document.getElementById("result").innerText = `❌ 超時了，正確答案是 商 ${correctQuotient} 餘 ${correctRemainder}.`;
+                    mistakeText += `（${timeoutMsg}）`;
+                    document.getElementById("result").innerText = `❌ 超時了，正確答案是 商 ${correctQuotient} 餘 ${correctRemainder}.`;
                 } else {
-                     mistakeText += `（你輸入：商 ${userQuotient} 餘 ${userRemainder}）`;
-                     document.getElementById("result").innerText = `❌ 錯了，正確答案是 商 ${correctQuotient} 餘 ${correctRemainder}.`;
+                    mistakeText += `（你輸入：商 ${userQuotient} 餘 ${userRemainder}）`;
+                    document.getElementById("result").innerText = `❌ 錯了，正確答案是 商 ${correctQuotient} 餘 ${correctRemainder}.`;
                 }
                 hint = `提示：${num2} 乘以 ${correctQuotient} 加上 ${correctRemainder} 等於 ${num1}`;
             } else {
